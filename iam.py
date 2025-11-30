@@ -1,4 +1,4 @@
-import sys, argparse, logging, datetime, re
+import sys, argparse, logging, re
 import colorlog
 from inspect import signature, Parameter
 from time import sleep
