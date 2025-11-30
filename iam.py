@@ -40,16 +40,6 @@ def print_help(print_numbers=False):
     for i, v in enumerate(cmdmap):
         print(f'{str(i + 1) + ": " if print_numbers else ""}{v} - {cmdmap[v][1]}')
 
-def serialize_obj(obj):
-    """
-    Handler to address non-serializable objects.
-    :param obj: An object that should be JSON serializable.
-    :return: An object that is JSON serializable.
-    """
-    if isinstance(obj, datetime.datetime):
-        return obj.isoformat() # Convert datetime object to serializable format
-    return obj # Everything else
-
 def count_req_args(function):
     """
     Count the number of required arguments to a given function.
@@ -89,29 +79,6 @@ def process_args():
         exit_clean(2) # Return code 2: command requires an argument but none supplied
     return (cmdfunc, args.cmdarg)
 
-def process_argsORIG():
-    """
-    Process CLI arguments and raise errors if input is not correct.
-    :return: A tuple containing the main action function for the script to perform and an argument, if needed.
-    """
-    logger.debug('Starting process_args...')
-    args = sys.argv[1:] # Slice everything after the script name
-    if len(args) == 0:
-        logger.debug('Script executed with 0 arguments.')
-        return (None, None)
-    cmd = args[0].lower()
-    if cmd not in cmdmap:
-        logger.error(f'{cmd} is not a valid command. Use one of: {", ".join(cmdmap)}')
-        exit_clean(2) # Return code 2: invalid command supplied
-    cmdfunc = cmdmap[cmd][0] # Index function object from cmdmap value tuple
-    req_args = count_req_args(cmdfunc)
-    arg = args[1] if req_args > 0 and len(args) > 1 else None
-    logger.debug(f'Using command: {cmd}')
-    if req_args > 0 and arg is None:
-        logger.error(f'Command {cmd} requires an argument.')
-        exit_clean(3) # Return code 3: command requires an argument but none supplied
-    return (cmdfunc, arg)
-
 def redact_acct_id(input_text, redact_output='<REDACTED>'):
     """
     Removes AWS account ID from a string object.
@@ -128,26 +95,25 @@ def list_users():
     try:
         iam_client = get_b3_client('iam')
         response = iam_client.list_users()
-
+        print('+===+ Users +===+')
         for user in response['Users']:
             user_name = user['UserName']
-            grpresponse = iam_client.list_groups_for_user(UserName=user_name)
-            print('+===+ Users +===+')
             print(f'User Name: {user_name}')
             print(f'User ID: {user["UserId"]}')
             print(f'Path: {user["Path"]}')
             print(f'ARN: {redact_acct_id(user["Arn"])}')
             print(f'Created: {user["CreateDate"]}')
+            grpresponse = iam_client.list_groups_for_user(UserName=user_name)
             if len(grpresponse) > 0:
                 for grp in grpresponse['Groups']:
                     group_name = grp['GroupName']
-                    manpolresponse = iam_client.list_attached_group_policies(GroupName=group_name)
-                    inpolresponse = iam_client.list_group_policies(GroupName=group_name)
                     print(f'Attached Group: {group_name}')
+                    manpolresponse = iam_client.list_attached_group_policies(GroupName=group_name)
                     if len(manpolresponse['AttachedPolicies']) > 0:
                         print('  Attached Managed Policies:')
                         for manpol in manpolresponse['AttachedPolicies']:
                             print(f'    {manpol["PolicyName"]}')
+                    inpolresponse = iam_client.list_group_policies(GroupName=group_name)
                     if len(inpolresponse['PolicyNames']) > 0:
                         print('  Attached Inline Policies:')
                         for inpol in inpolresponse['PolicyNames']:
@@ -158,16 +124,14 @@ def list_users():
 
 def list_roles():
     """
-    List user-defined IAM users in account.
+    List defined IAM roles in account.
     """
     try:
         iam_client = get_b3_client('iam')
         rolresponse = iam_client.list_roles()
-
-        print('#===# User-defined Roles #===#')
+        print('#===# Roles #===#')
         for role in rolresponse['Roles']:
-            # Filter out service roles before outputting
-            if not role['Path'].startswith('/aws-service-role/'):
+            if not role['Path'].startswith('/aws-service-role/'): # Filter out service roles before outputting
                 print(f'Role Name: {role["RoleName"]}')
                 print(f'Role ID: {role["RoleId"]}')
                 print(f'Path: {role["Path"]}')
@@ -241,13 +205,13 @@ def usage_summary():
     try:
         iam_client = get_b3_client('iam')
         for k, v in iam_client.get_account_summary()['SummaryMap'].items(): # Dirty one-liner for demo use only. Look how concise it is!
-            logger.info(f'{k}: {v}')
+            print(f'{k}: {v}')
     except ClientError as e:
         logger.error(f'Summary retrieval failed. Error code: {e.response["Error"]["Code"]}')
 
 def assume_role(role_arn, session_name='S3HousinDemoSession', output_file='set_creds.sh'):
     """
-    Acquires temporary credentials for the given role, creates global session instance, and creates a script to export credentials to the shell.
+    Acquires temporary credentials for the given role, creates global session instance, and creates a script to export credentials to a bash shell.
     :param role_arn: The ARN of the role to be assumed.
     :param session_name: A name by which the session will be referenced in logs.
     """
@@ -267,8 +231,8 @@ def assume_role(role_arn, session_name='S3HousinDemoSession', output_file='set_c
 
 def create_file(file_path, creds):
     """
-    Write temporary credentials to an executable shell script.
-    :param file_path: The script file which should be created.
+    Write temporary credentials to a file suitable for bash sourcing.
+    :param file_path: The file which should be created.
     :param creds: Object containing the credential K/V pairs.
     """
     try:
@@ -292,7 +256,7 @@ def list_buckets():
             print(f'Bucket Name: {bucket["Name"]}')
             print(f'ARN: {bucket["BucketArn"]}')
             print(f'Created: {bucket["CreationDate"]}')
-        print('\n' + ('-' * 20) + '\n')
+            print('\n' + ('-' * 20) + '\n')
     except ClientError as e:
         logger.error(f'Error while listing S3 buckets: {e}')
 
@@ -334,6 +298,11 @@ def display_menu():
     return (selected_function, addarg)
 
 def execute_main_action(main_action, arg):
+    """
+    Execute a function object with or without an argument.
+    :param main_action: The function to execute
+    :param arg: The command argument or None if no argument is needed
+    """
     if arg is None:
         main_action()
     else:
@@ -348,7 +317,7 @@ def exit_clean(exit_code=0):
     logging.shutdown()
     sys.exit(exit_code)
 
-# This necessarily need be below the function definitions!
+# This need be below the function definitions!
 # Commands should be listed in all lowercase because input is converted to lower
 cmdmap = {
     'help': (print_help, 'Print this help text.'),
