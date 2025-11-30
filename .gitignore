@@ -1,0 +1,6 @@
+# Environment
+.venv
+.ropeproject
+
+# Helper scripts
+*.sh
