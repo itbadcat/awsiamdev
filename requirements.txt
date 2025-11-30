@@ -1,0 +1,17 @@
+awscli==1.43.5
+boto3==1.41.5
+botocore==1.41.5
+colorama==0.4.6
+colorlog==6.10.1
+docutils==0.19
+evdev==1.9.2
+jmespath==1.0.1
+pyasn1==0.6.1
+python-dateutil==2.9.0.post0
+python-xlib==0.33
+PyYAML==6.0.3
+rsa==4.7.2
+s3transfer==0.15.0
+six==1.17.0
+sshkeyboard==2.3.1
+urllib3==2.5.0
