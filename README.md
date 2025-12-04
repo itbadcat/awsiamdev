@@ -9,6 +9,7 @@ This script demonstrates some of the core functionality of the AWS boto3 library
   - Viewing a usage summary for the account
   - Assuming a pre-defined role and applying the temporary credentials to the current script execution
   - Listing all S3 buckets hosted in the account
+  - Displaying information related to an IAM Access Analyzer
 
 ### Required Packages
 See [requirements.txt](requirements.txt)
@@ -32,4 +33,5 @@ See [requirements.txt](requirements.txt)
   - [iam:GetAccountSummary](https://docs.aws.amazon.com/IAM/latest/APIReference/API_GetAccountSummary.html)
   - [sts:AssumeRole](https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html)
   - [s3:ListAllMyBuckets](https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListBuckets.html)
+  - [access-analyzer:GetAnalyzer](https://docs.aws.amazon.com/access-analyzer/latest/APIReference/API_GetAnalyzer.html)
 3. [iam.py](iam.py) can be run in an interactive menu mode by executing it with no arguments, i.e. ```python iam.py```. Commands can also be executed directly by providing the command name and any necessary command arguments, e.g. ```python iam.py create-alias PleaseSirCanIHaveAnAlias```.
