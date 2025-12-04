@@ -86,7 +86,7 @@ def redact_acct_id(input_text, redact_output='<REDACTED>'):
     :param redact_output: The replacement string to be substituted for input_text. Default: "<REDACTED>"
     :return: The redacted version of the original string.
     """
-    return re.sub(r'(arn:aws:iam::)\d{12}', fr'\1{redact_output}', input_text) # Capture group not strictly necessary here but added to verify that no other text gets mangled
+    return re.sub(r'(arn:aws:.*:)\d{12}', fr'\1{redact_output}', input_text) # Capture group not strictly necessary here but added to verify that no other text gets mangled
 
 def list_users():
     """
@@ -260,6 +260,29 @@ def list_buckets():
     except ClientError as e:
         logger.error(f'Error while listing S3 buckets: {e}')
 
+def show_analyzer(name):
+    """
+    Retrieves information about an IAM Access Analyzer.
+    :param name: The name of the analyzer to view.
+    """
+    try:
+        aa_client = get_b3_client('accessanalyzer')
+        response = aa_client.get_analyzer(analyzerName=name)
+        analyzer = response['analyzer']
+        print('#===# Analyzer Info #===#')
+        print(f'Analyzer Name: {analyzer["name"]}')
+        print(f'Analyzer Type: {analyzer["type"]}')
+        print(f'ARN: {redact_acct_id(analyzer["arn"])}')
+        print(f'Created: {analyzer["createdAt"]}')
+        print(f'Status: {analyzer["status"]}')
+        if 'statusReason' in analyzer: # Status reason not present for ACTIVE status
+            print(f'Status Reason: {analyzer["statusReason"]}')
+        print(f'Last Resource Analyzed: {analyzer["lastResourceAnalyzed"]}')
+        if 'configuration' in analyzer: # Configuration data appears to only be present in internal or unused access analyzers
+            print(f'Configuration: {analyzer["configuration"]}')
+    except ClientError as e:
+        logger.error(f'Error while displaying analyzer: {e}')
+
 def get_valid_menu_selection(lower, upper, prompt_text='Please select an option (by number): '):
     """
     Collect an integer in the specified range from stdin.
@@ -329,6 +352,7 @@ cmdmap = {
     'usage': (usage_summary, 'Print account usage summary.'),
     'assume-role': (assume_role, 'Assume a role limited to S3 read access.'),
     'list-buckets': (list_buckets, 'List S3 buckets.'),
+    'show-analyzer': (show_analyzer, 'Display an IAM Access Analyzer.'),
     'exit': (exit_clean, 'Exit this script.')
     }
 
