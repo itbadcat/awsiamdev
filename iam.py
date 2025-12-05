@@ -12,9 +12,10 @@ b3_session = None # Initialize global to None for initial run
 def get_b3_client(service_id):
     """
     Creates a new boto3 client using most relevant credentials.
+    :param service_id: A string identifying the AWS service that the client will be used with.
     :return: The new client instance.
     """
-    logger.debug(f'Session is set to: {b3_session}')
+    logger.debug(f'Session is set to: {b3_session}. Returning client for {service_id} service.')
     if b3_session is not None:
         return b3_session.client(service_id)
     else:
@@ -23,7 +24,7 @@ def get_b3_client(service_id):
 def get_new_logger():
     """
     Fetches a named logger with basic configuration in place.
-    :param logging_level: The level at which log statements should be pushed to the output stream
+    :return: The newly instantiated logger object.
     """
     handler = colorlog.StreamHandler()
     formatter = colorlog.ColoredFormatter('%(log_color)s%(levelname)-8s%(reset)s %(blue)s%(message)s', log_colors={ 'DEBUG': 'cyan', 'INFO': 'green', 'WARNING': 'orange', 'ERROR': 'red', 'CRITICAL': 'bold_red' })
@@ -35,6 +36,7 @@ def get_new_logger():
 def print_help(print_numbers=False):
     """
     Prints the script help text.
+    :param print_numbers: A boolean indicating whether commands should be listed in numbered format. Used when printing menu. Default: False
     """
     print('Commands:')
     for i, v in enumerate(cmdmap):
@@ -125,6 +127,8 @@ def list_users():
 def list_roles(output_roles=True):
     """
     List defined IAM roles in account.
+    :param output_roles: A boolean indicating whether role details should be printed to stdout. For use in assume_role. Default: True
+    :return: A list of all roles found in the account. For use in assume_role.
     """
     roles = [] # Initialize empty list for return value
     try:
@@ -149,7 +153,7 @@ def list_roles(output_roles=True):
 def list_alias():
     """
     List alias for current account.
-    :return: The 'list' of aliases for the account.
+    :return: The 'list' of aliases for the account. Should always be a list object containing a single item. For use in other alias commands.
     """
     logger.debug('Starting list_alias...')
     aliases = None
@@ -217,8 +221,9 @@ def usage_summary():
 def assume_role(role_name, session_name='S3HousinDemoSession', output_file='set_creds.sh'):
     """
     Acquires temporary credentials for the given role, creates global session instance, and creates a script to export credentials to a bash shell.
-    :param role_arn: The ARN of the role to be assumed.
-    :param session_name: A name by which the session will be referenced in logs.
+    :param role_name: The name of the role to be assumed.
+    :param session_name: A name by which the session will be referenced in logs. Default: S3HousinDemoSession
+    :param output_file: The file to which role temporary credentials should be written for shell sourcing. Default: set_creds.sh
     """
     global b3_session
     creds = None # Ensure that creds is never unbound
@@ -295,7 +300,7 @@ def list_analyzers():
 
 def show_analyzer(name):
     """
-    Retrieves information about an IAM Access Analyzer.
+    Prints information about an IAM Access Analyzer.
     :param name: The name of the analyzer to view.
     """
     try:
@@ -398,7 +403,7 @@ def execute_main_action(main_action, arg):
 def exit_clean(exit_code=0):
     """
     Shut down the logging system and exit Python, returning exit_code to the OS.
-    :param exit_code: The exit code to report up to the OS.
+    :param exit_code: The exit code to report up to the OS. Default: 0
     """
     logger.debug(f'Shutting down logger and exiting with code {exit_code}...')
     logging.shutdown()
