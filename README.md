@@ -9,8 +9,8 @@ This script demonstrates some of the core functionality of the AWS boto3 library
   - Viewing a usage summary for the account
   - Assuming a pre-defined role and applying the temporary credentials to the current script execution
   - Listing all S3 buckets hosted in the account
-  - Listing all external Access Analyzers
-  - Listing findings of external Access Analyzera
+  - Listing all account-level IAM Access Analyzers
+  - Listing findings of external access analyzers
 
 ### Required Packages
 See [requirements.txt](requirements.txt)
