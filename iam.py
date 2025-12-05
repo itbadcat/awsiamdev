@@ -122,24 +122,29 @@ def list_users():
     except ClientError as e:
         logger.error(f'Unable to list users. Error code: {e.response["Error"]["Code"]}')
 
-def list_roles():
+def list_roles(output_roles=True):
     """
     List defined IAM roles in account.
     """
+    roles = [] # Initialize empty list for return value
     try:
         iam_client = get_b3_client('iam')
         rolresponse = iam_client.list_roles()
-        print('#===# Roles #===#')
-        for role in rolresponse['Roles']:
-            if not role['Path'].startswith('/aws-service-role/'): # Filter out service roles before outputting
-                print(f'Role Name: {role["RoleName"]}')
-                print(f'Role ID: {role["RoleId"]}')
-                print(f'Path: {role["Path"]}')
-                print(f'ARN: {redact_acct_id(role["Arn"])}')
-                print(f'Created: {role["CreateDate"]}')
-                print('\n' + ('-' * 20) + '\n')
+        roles = rolresponse['Roles']
+        if output_roles:
+            print('#===# Roles #===#')
+            for role in roles:
+                if not role['Path'].startswith('/aws-service-role/'): # Filter out service roles before outputting
+                    print(f'Role Name: {role["RoleName"]}')
+                    print(f'Role ID: {role["RoleId"]}')
+                    print(f'Path: {role["Path"]}')
+                    print(f'ARN: {redact_acct_id(role["Arn"])}')
+                    print(f'Created: {role["CreateDate"]}')
+                    print('\n' + ('-' * 20) + '\n')
     except ClientError as e:
         logger.error(f'Unable to list roles. Error code: {e.response["Error"]["Code"]}')
+    finally:
+        return roles # Return statement used by assume_role. DO NOT DELETE
 
 def list_alias():
     """
@@ -209,7 +214,7 @@ def usage_summary():
     except ClientError as e:
         logger.error(f'Summary retrieval failed. Error code: {e.response["Error"]["Code"]}')
 
-def assume_role(role_arn, session_name='S3HousinDemoSession', output_file='set_creds.sh'):
+def assume_role(role_name, session_name='S3HousinDemoSession', output_file='set_creds.sh'):
     """
     Acquires temporary credentials for the given role, creates global session instance, and creates a script to export credentials to a bash shell.
     :param role_arn: The ARN of the role to be assumed.
@@ -217,16 +222,27 @@ def assume_role(role_arn, session_name='S3HousinDemoSession', output_file='set_c
     """
     global b3_session
     creds = None # Ensure that creds is never unbound
-    try:
-        sts_client = get_b3_client('sts')
-        response = sts_client.assume_role(RoleArn=role_arn, RoleSessionName=session_name, DurationSeconds=3600) # Credentials valid for one hour
-        creds = response['Credentials'] # Fetch credentials object from STS client response
-        logger.debug('Creating session object for client generation...')
-        b3_session = B3Session(aws_access_key_id=creds['AccessKeyId'], aws_secret_access_key=creds['SecretAccessKey'], aws_session_token=creds['SessionToken'], region_name='us-east-1')
-        logger.info(f'Temporary credentials set for current script. To export to the shell, exit and source: {output_file}')
-    except Exception as e:
-        logger.error(f'Assume role failed. Error code: {e.response["Error"]["Code"]}')
-    if creds is not None: # Check should be unnecessary, but just in case
+    roles = list_roles(output_roles=False) # Don't print the role details, just get the list to check names against
+    if len(roles) > 0:
+        role_arn = None
+        for role in roles:
+            if role['RoleName'] == role_name:
+                role_arn = role['Arn']
+        if role_arn is not None:
+            try:
+                sts_client = get_b3_client('sts')
+                response = sts_client.assume_role(RoleArn=role_arn, RoleSessionName=session_name, DurationSeconds=3600) # Credentials valid for one hour
+                creds = response['Credentials'] # Fetch credentials object from STS client response
+                logger.debug('Creating session object for client generation...')
+                b3_session = B3Session(aws_access_key_id=creds['AccessKeyId'], aws_secret_access_key=creds['SecretAccessKey'], aws_session_token=creds['SessionToken'], region_name='us-east-1')
+                logger.info(f'Temporary credentials set for current script. To export to the shell, exit and source: {output_file}')
+            except Exception as e:
+                logger.error(f'Assume role failed. Error code: {e.response["Error"]["Code"]}')
+        else:
+            logger.error(f'Role {role_name} not found.')
+    else:
+        logger.info('No roles were found in the account.') # Should never fire
+    if creds is not None: # Output credential script if role was found
         create_file(output_file, creds)
 
 def create_file(file_path, creds):
@@ -398,7 +414,7 @@ cmdmap = {
     'create-alias': (create_alias, 'Set the account alias.'),
     'delete-alias': (delete_alias, 'Delete the account alias.'),
     'usage': (usage_summary, 'Print account usage summary.'),
-    'assume-role': (assume_role, 'Assume a role limited to S3 read access.'),
+    'assume-role': (assume_role, 'Assume an IAM role by name and update utilized script credentials.'),
     'list-buckets': (list_buckets, 'List S3 buckets.'),
     'list-analyzers': (list_analyzers, 'List IAM Access Analyzers.'),
     'list-findings': (list_analyzer_findings, 'List analyzer findings.'),
