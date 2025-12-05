@@ -225,7 +225,7 @@ def assume_role(role_arn, session_name='S3HousinDemoSession', output_file='set_c
         b3_session = B3Session(aws_access_key_id=creds['AccessKeyId'], aws_secret_access_key=creds['SecretAccessKey'], aws_session_token=creds['SessionToken'], region_name='us-east-1')
         logger.info(f'Temporary credentials set for current script. To export to the shell, exit and source: {output_file}')
     except Exception as e:
-        logger.error(f'Error while assuming role: {e}')
+        logger.error(f'Assume role failed. Error code: {e.response["Error"]["Code"]}')
     if creds is not None: # Check should be unnecessary, but just in case
         create_file(output_file, creds)
 
@@ -242,7 +242,7 @@ def create_file(file_path, creds):
             f.write(f'export AWS_SESSION_TOKEN={creds["SessionToken"]}\n')
         logger.debug(f'File {file_path} created')
     except Exception as e:
-        logger.error(f'Error while creating credential file: {e}')
+        logger.error(f'Creating credential file failed: {e}')
 
 def list_buckets():
     """
@@ -258,7 +258,7 @@ def list_buckets():
             print(f'Created: {bucket["CreationDate"]}')
             print('\n' + ('-' * 20) + '\n')
     except ClientError as e:
-        logger.error(f'Error while listing S3 buckets: {e}')
+        logger.error(f'Failed listing S3 buckets. Error code: {e.response["Error"]["Code"]}')
 
 def list_analyzers():
     """
@@ -275,7 +275,7 @@ def list_analyzers():
         else:
             logger.info('No access analyzers found.')
     except ClientError as e:
-        logger.error(f'Error while listing analyzers: {e}')
+        logger.error(f'Failed listing analyzers. Error code: {e.response["Error"]["Code"]}')
 
 def show_analyzer(name):
     """
@@ -297,7 +297,7 @@ def show_analyzer(name):
         if 'configuration' in analyzer: # Configuration data appears to not be present in external access analyzers
             print(f'Configuration: {analyzer["configuration"]}')
     except ClientError as e:
-        logger.error(f'Error while displaying analyzer: {e}')
+        logger.error(f'Failed displaying analyzer. Error code: {e.response["Error"]["Code"]}')
 
 def list_analyzer_findings():
     """
@@ -329,7 +329,7 @@ def list_analyzer_findings():
                 print('  No access analyzer findings.')
             print('\n' + ('-' * 20) + '\n')
     except ClientError as e:
-        logger.error(f'Error while listing findings: {e}')
+        logger.error(f'Failed listing findings. Error code: {e.response["Error"]["Code"]}')
 
 def get_valid_menu_selection(lower, upper, prompt_text='Please select an option (by number): '):
     """
