@@ -260,6 +260,23 @@ def list_buckets():
     except ClientError as e:
         logger.error(f'Error while listing S3 buckets: {e}')
 
+def list_analyzers():
+    """
+    Lists account-level IAM Access Analyzers.
+    """
+    try:
+        aa_client = get_b3_client('accessanalyzer')
+        response = aa_client.list_analyzers(type='ACCOUNT') # Account external access analyzers only
+        if len(response['analyzers']) > 0:
+            print('#===# IAM Access Analyzers #===#')
+            for analyzer in response['analyzers']:
+                show_analyzer(analyzer['name']) # Print details
+                print('\n' + ('-' * 20) + '\n')
+        else:
+            logger.info('No access analyzers found.')
+    except ClientError as e:
+        logger.error(f'Error while listing analyzers: {e}')
+
 def show_analyzer(name):
     """
     Retrieves information about an IAM Access Analyzer.
@@ -269,7 +286,6 @@ def show_analyzer(name):
         aa_client = get_b3_client('accessanalyzer')
         response = aa_client.get_analyzer(analyzerName=name)
         analyzer = response['analyzer']
-        print('#===# Analyzer Info #===#')
         print(f'Analyzer Name: {analyzer["name"]}')
         print(f'Analyzer Type: {analyzer["type"]}')
         print(f'ARN: {redact_acct_id(analyzer["arn"])}')
@@ -278,10 +294,42 @@ def show_analyzer(name):
         if 'statusReason' in analyzer: # Status reason not present for ACTIVE status
             print(f'Status Reason: {analyzer["statusReason"]}')
         print(f'Last Resource Analyzed: {analyzer["lastResourceAnalyzed"]}')
-        if 'configuration' in analyzer: # Configuration data appears to only be present in internal or unused access analyzers
+        if 'configuration' in analyzer: # Configuration data appears to not be present in external access analyzers
             print(f'Configuration: {analyzer["configuration"]}')
     except ClientError as e:
         logger.error(f'Error while displaying analyzer: {e}')
+
+def list_analyzer_findings():
+    """
+    Lists findings from all external access analyzers.
+    """
+    try:
+        aa_client = get_b3_client('accessanalyzer')
+        la_response = aa_client.list_analyzers(type='ACCOUNT') # Account external access analyzers only
+        print('#===# Analyzer Findings #===#')
+        for analyzer in la_response['analyzers']:
+            print(f'Analyzer Name: {analyzer["name"]}')
+            lf_response = aa_client.list_findings(analyzerArn=analyzer['arn'])
+            findings = lf_response['findings']
+            if len(findings) > 0:
+                print('  Findings:')
+                for finding in findings:
+                    print(f'    Finding ID: {finding["id"]}')
+                    print(f'        Finding Status: {finding["status"]}')
+                    print(f'        Resource: {finding["resource"]}')
+                    print(f'        Resource Type: {finding["resourceType"]}')
+                    print(f'        Resource Owner: {finding["resourceOwnerAccount"]}')
+                    print(f'        Finding Sources: {", ".join([ source["type"] for source in finding["sources"] ])}')
+                    print(f'        Public Access: {"YES" if finding["isPublic"] else "NO"}')
+                    print(f'        Policy Principal: {finding["principal"]}')
+                    print(f'        Policy Actions: {", ".join(finding["action"])}')
+                    print(f'        Analyzed At: {finding["analyzedAt"]}')
+                    print(f'        Updated At: {finding["updatedAt"]}')
+            else:
+                print('  No access analyzer findings.')
+            print('\n' + ('-' * 20) + '\n')
+    except ClientError as e:
+        logger.error(f'Error while listing findings: {e}')
 
 def get_valid_menu_selection(lower, upper, prompt_text='Please select an option (by number): '):
     """
@@ -352,7 +400,8 @@ cmdmap = {
     'usage': (usage_summary, 'Print account usage summary.'),
     'assume-role': (assume_role, 'Assume a role limited to S3 read access.'),
     'list-buckets': (list_buckets, 'List S3 buckets.'),
-    'show-analyzer': (show_analyzer, 'Display an IAM Access Analyzer.'),
+    'list-analyzers': (list_analyzers, 'List IAM Access Analyzers.'),
+    'list-findings': (list_analyzer_findings, 'List analyzer findings.'),
     'exit': (exit_clean, 'Exit this script.')
     }
 
