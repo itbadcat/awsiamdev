@@ -395,10 +395,14 @@ def execute_main_action(main_action, arg):
     :param main_action: The function to execute
     :param arg: The command argument or None if no argument is needed
     """
-    if arg is None:
-        main_action()
-    else:
-        main_action(arg)
+    try:
+        if arg is None:
+            main_action()
+        else:
+            main_action(arg)
+    except Exception as e:
+        logger.error(f'Unexpected uncaught error: {e}')
+        exit_clean(3) # Return code 3: unexpected error occurred
 
 def exit_clean(exit_code=0):
     """
