@@ -246,7 +246,7 @@ def assume_role(role_name, session_name='S3HousinDemoSession', output_file='set_
         else:
             logger.error(f'Role {role_name} not found.')
     else:
-        logger.info('No roles were found in the account.') # Should never fire
+        logger.error('No roles were found in the account.') # Fires when list_roles access is denied
     if creds is not None: # Output credential script if role was found
         create_file(output_file, creds)
 
